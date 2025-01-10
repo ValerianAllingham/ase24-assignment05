@@ -2,42 +2,29 @@ package de.unibayreuth.se.taskboard.api.mapper;
 
 import de.unibayreuth.se.taskboard.api.dtos.UserDto;
 import de.unibayreuth.se.taskboard.business.domain.User;
+import lombok.NoArgsConstructor;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.UUID;
 
 @Mapper(componentModel = "spring")
-public interface UserDtoMapper {
+@ConditionalOnMissingBean // prevent IntelliJ warning about duplicate beans
+@NoArgsConstructor
+public abstract class UserDtoMapper {
 
-    default UserDto toDto(User user) {
-        if (user == null) {
-            return null;
+    public abstract UserDto fromBusiness(User source);
+
+    //TODO: Fix this mapper after resolving the other TODOs.
+    @Mapping(target = "createdAt", expression = "java(mapTimestamp(source.createdAt()))")
+    public abstract User toBusiness(UserDto source);
+
+    protected LocalDateTime mapTimestamp (LocalDateTime timestamp) {
+        if (timestamp == null) {
+            return LocalDateTime.now(ZoneId.of("UTC"));
         }
-        return new UserDto(
-            user.getId() != null ? user.getId().toString() : null,
-            user.getCreatedAt(),
-            user.getName()
-            
-        );
+        return timestamp;
     }
-
-    default User toDomain(UserDto userDto) {
-        if (userDto == null) {
-            return null;
-        }
-
-        // Create a User object with the name
-        User user = new User(userDto.name());
-
-        // Set additional fields manually
-        user.setId(userDto.id() != null ? UUID.fromString(userDto.id()) : null);
-        user.setCreatedAt(userDto.createdAt() != null ? userDto.createdAt() : LocalDateTime.now(ZoneId.of("UTC")));
-        // If timezone is part of the DTO
-
-
-        return user;
-    }
-
 }

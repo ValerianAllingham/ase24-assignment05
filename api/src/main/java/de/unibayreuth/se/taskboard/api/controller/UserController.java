@@ -13,7 +13,9 @@ import de.unibayreuth.se.taskboard.api.dtos.UserDto;
 import de.unibayreuth.se.taskboard.api.mapper.UserDtoMapper;
 
 
+import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @OpenAPIDefinition(
@@ -35,7 +37,7 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<UserDto>> getAllUsers() {
         List<UserDto> users = userService.getAllUsers().stream()
-                .map(userDtoMapper::toDto) // Convert User -> UserDto
+                .map(userDtoMapper::fromBusiness) // Convert User -> UserDto
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users); // Return 200 OK with the list of users
     }
@@ -44,19 +46,19 @@ public class UserController {
 
     // TODO: Add GET /api/users/{id} endpoint to retrieve a user by ID.
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable String id) {
-        return userService.getUserById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> getById(@PathVariable UUID id) {
+        return userService.getById(id)
+                .map(user -> ResponseEntity.ok(userDtoMapper.fromBusiness(user))) // Map User -> UserDto
+                .orElse(ResponseEntity.notFound().build()); // Return 404 if user not found
     }
 
     // TODO: Add POST /api/users endpoint to create a new user based on a provided user DTO.
     @PostMapping
-        public ResponseEntity<Void> createUser(@RequestBody UserDto dto) {
-        // Map UserDto to User
-        User user = userDtoMapper.toDomain(dto);
-        userService.createUser(user);
-        return ResponseEntity.status(201).build(); // Return HTTP 201 (Created)
-        }
+    public ResponseEntity<Void> createUser(@RequestBody UserDto dto) {
+    // Map UserDto to User
+    User user = userDtoMapper.toBusiness(dto);
+    User createdUser = userService.createUser(user);
+        return ResponseEntity.created(URI.create("/api/users/" + createdUser.getId())).build();
+    }
 
 }

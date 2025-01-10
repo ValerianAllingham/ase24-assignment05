@@ -1,11 +1,12 @@
 package de.unibayreuth.se.taskboard.business.impl;
 
 import de.unibayreuth.se.taskboard.business.domain.User;
-import de.unibayreuth.se.taskboard.business.exceptions.DuplicateNameException;
+import de.unibayreuth.se.taskboard.business.exceptions.MalformedRequestException;
 import de.unibayreuth.se.taskboard.business.exceptions.UserNotFoundException;
 import de.unibayreuth.se.taskboard.business.ports.UserPersistenceService;
 import de.unibayreuth.se.taskboard.business.ports.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,26 +23,49 @@ public class UserServiceImpl implements UserService {
     private final UserPersistenceService userPersistenceService;
 
     @Override
+    public void clear() {
+        userPersistenceService.clear();
+    }
+
+    @Override
+    @NonNull
     public List<User> getAllUsers() {
         return userPersistenceService.getAll();
     }
 
     @Override
-    public Optional<User> getUserById(String id) {
+    @NonNull
+    public Optional<User> getById(@NonNull UUID id) {
         try {
-            UUID uuid = UUID.fromString(id); // Convert String to UUID
-            return userPersistenceService.getById(uuid);
+
+            return userPersistenceService.getById(id);
         } catch (IllegalArgumentException e) {
-            return Optional.empty(); // Return empty Optional if the ID is invalid
+            return Optional.empty();
         }
     }
 
     @Override
-    public void createUser(User user) {
-        try {
-            userPersistenceService.upsert(user); // Delegate to UserPersistenceService
-        } catch (DuplicateNameException | UserNotFoundException e) {
-            throw new RuntimeException("Failed to create user: " + e.getMessage(), e);
+    @NonNull
+    public User createUser(@NonNull User user) throws MalformedRequestException, UserNotFoundException {
+        if (user.getId() != null) {
+            throw new MalformedRequestException("Task ID must not be set.");
         }
+        return upsert(user);
     }
+
+    @Override
+    @NonNull
+    public User upsert(@NonNull User user) {
+        if (user.getId() != null) {
+            verifyUserExists(user.getId());
+        }
+        return userPersistenceService.upsert(user);
+
+    }
+    @NonNull
+    private void verifyUserExists(@NonNull UUID id) throws UserNotFoundException {
+        userPersistenceService.getById(id)
+                .orElseThrow(() -> new UserNotFoundException("User with ID " + id + " does not exist."));
+    }
+
 }
